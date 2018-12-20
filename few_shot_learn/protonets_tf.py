@@ -56,10 +56,11 @@ class TFProtoNet:
                 train_losses.append(ls)
                 train_accs.append(ac)
             print('[epoch {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, ls, ac))
+        return train_losses, train_accs
 
     def test(self, test_dataset, n_test_classes, n_test_episodes, n_test_way, n_test_shot, n_test_query):
         print('Testing...')
-        avg_acc = 0.
+        test_losses, test_accs = [], []
 
         sess = tf.InteractiveSession()
 
@@ -76,14 +77,14 @@ class TFProtoNet:
             query = np.expand_dims(query, axis=-1)
             labels = np.tile(np.arange(n_test_way)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
             ls, ac = self.sess.run([self.ce_loss, self.acc], feed_dict={self.x: support, self.q: query, self.y:labels, self.training:False})
-            avg_acc += ac
-
+            test_accs.append(ac)
+            test_losses.append(ls)
             if (epi+1) % 25 == 0:
                 print('[test episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(epi+1, n_test_episodes, ls, ac))
 
-        avg_acc /= n_test_episodes
+        avg_acc = (sum(test_accs) / len(test_accs))
         print('Average Test Accuracy: {:.5f}'.format(avg_acc))
-
+        return test_losses, test_accs
 
 def conv_block(inputs, out_channels, training, rate, name='conv'):
     with tf.variable_scope(name):
