@@ -6,4 +6,3 @@ def test_omniglot_data():
 
     assert train.shape == (4112, 20, 28, 28)
     assert test.shape == (1692, 20, 28, 28)
-

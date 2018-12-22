@@ -1,1 +1,1 @@
-from .protonets_tf import ProtoNetTF
+from .protonet_tf import ProtoNetTF
