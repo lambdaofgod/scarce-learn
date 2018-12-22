@@ -3,7 +3,7 @@ import tensorflow as tf
 from tqdm import trange
 
 
-class TFProtoNet:
+class ProtoNetTF:
 
     def __init__(self, im_height, im_width, channels, h_dim=64, z_dim=64, dropout_rate=0.1, scope_name_suffix='_0', sess=None):
         self.im_height = im_height
@@ -24,7 +24,7 @@ class TFProtoNet:
         x, q, y, training = setup_inputs(self.im_height, self.im_width, self.channels)
         self.x, self.q, self.y, self.training = x, q, y, training
 
-        ce_loss, acc = setup_outputs(x, q, y, training, self.h_dim, self.z_dim, self.channels, self.dropout_rate, scope_name_suffix=self.scope_name_suffix)
+        ce_loss, acc = setup_outputs(x, q, y, training, self.h_dim, self.z_dim, self.channels, self.dropout_rate)
         self.ce_loss, self.acc = ce_loss, acc
 
         train_op = setup_train_op(
@@ -52,17 +52,20 @@ class TFProtoNet:
                 support = np.expand_dims(support, axis=-1)
                 query = np.expand_dims(query, axis=-1)
                 labels = np.tile(np.arange(n_way)[:, np.newaxis], (1, n_query)).astype(np.uint8)
-                __, ls, ac = self.sess.run([train_op, ce_loss, acc], feed_dict={x: support, q: query, y:labels, training: True})
+                __, ls, ac = self.sess.run(
+                    [train_op, ce_loss, acc],
+                    feed_dict={x: support, q: query, y:labels, training: True}
+                )
                 train_losses.append(ls)
                 train_accs.append(ac)
             print('[epoch {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, ls, ac))
         return train_losses, train_accs
 
     def test(self, test_dataset, n_test_classes, n_test_episodes, n_test_way, n_test_shot, n_test_query):
+        n_classes, n_examples, im_width, im_height = test_dataset.shape
+
         print('Testing...')
         test_losses, test_accs = [], []
-
-        sess = tf.InteractiveSession()
 
         for epi in range(n_test_episodes):
             epi_classes = np.random.permutation(n_test_classes)[:n_test_way]
@@ -76,7 +79,10 @@ class TFProtoNet:
             support = np.expand_dims(support, axis=-1)
             query = np.expand_dims(query, axis=-1)
             labels = np.tile(np.arange(n_test_way)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
-            ls, ac = self.sess.run([self.ce_loss, self.acc], feed_dict={self.x: support, self.q: query, self.y:labels, self.training:False})
+            ls, ac = self.sess.run(
+                [self.ce_loss, self.acc],
+                feed_dict={self.x: support, self.q: query, self.y:labels, self.training:False}
+            )
             test_accs.append(ac)
             test_losses.append(ls)
             if (epi+1) % 25 == 0:
@@ -85,6 +91,7 @@ class TFProtoNet:
         avg_acc = (sum(test_accs) / len(test_accs))
         print('Average Test Accuracy: {:.5f}'.format(avg_acc))
         return test_losses, test_accs
+
 
 def conv_block(inputs, out_channels, training, rate, name='conv'):
     with tf.variable_scope(name):
@@ -135,10 +142,23 @@ def setup_outputs(x, q, y, training, h_dim, z_dim, channels, dropout_rate):
 
     y_one_hot = tf.one_hot(y, depth=num_classes)
 
-    emb_x = encoder(tf.reshape(x, [num_classes * num_support, im_height, im_width, channels]), h_dim, z_dim, training=training, rate=dropout_rate)
+    emb_x = encoder(
+        tf.reshape(x, [num_classes * num_support, im_height, im_width, channels]),
+        h_dim,
+        z_dim,
+        training=training,
+        rate=dropout_rate
+    )
     emb_dim = tf.shape(emb_x)[-1]
     emb_x = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
-    emb_q = encoder(tf.reshape(q, [num_classes * num_queries, im_height, im_width, channels]), h_dim, z_dim, reuse=True, training=training, rate=dropout_rate)
+    emb_q = encoder(
+        tf.reshape(q, [num_classes * num_queries, im_height, im_width, channels]),
+        h_dim,
+        z_dim,
+        reuse=True,
+        training=training,
+        rate=dropout_rate
+    )
 
     dists = euclidean_distance(emb_q, emb_x)
     log_p_y = tf.reshape(tf.nn.log_softmax(-dists), [num_classes, num_queries, -1])
@@ -158,9 +178,7 @@ def setup_train_op(
       Defaults are set according to original paper
     """
 
-
     global_step = tf.Variable(0, trainable=False)
-    starter_learning_rate = 0.002
     learning_rate = tf.train.exponential_decay(
         starter_learning_rate,
         global_step,
