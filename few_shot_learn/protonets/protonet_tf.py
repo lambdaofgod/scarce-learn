@@ -5,10 +5,8 @@ from tqdm import trange
 
 class ProtoNetTF:
 
-    def __init__(self, im_height, im_width, channels, h_dim=64, z_dim=64, dropout_rate=0.1, scope_name_suffix='_0', sess=None):
-        self.im_height = im_height
-        self.im_width = im_width
-        self.channels = channels
+    def __init__(self, input_shape, h_dim=64, z_dim=64, dropout_rate=0.1, scope_name_suffix='_0', sess=None):
+        self.input_shape = input_shape
         self.h_dim = h_dim
         self.z_dim = z_dim
         self.dropout_rate = dropout_rate
@@ -18,18 +16,18 @@ class ProtoNetTF:
         else:
             self.sess = sess
 
-    def train(self, train_dataset, n_epochs, n_episodes, n_way, n_shot, n_query):
+    def train(self, train_dataset, n_epochs, n_episodes, n_way, n_shot, n_query, epoch_decay_interval=20):
         n_classes, n_examples, im_width, im_height = train_dataset.shape
 
-        x, q, y, training = setup_inputs(self.im_height, self.im_width, self.channels)
+        x, q, y, training = setup_inputs(self.input_shape)
         self.x, self.q, self.y, self.training = x, q, y, training
 
-        ce_loss, acc = setup_outputs(x, q, y, training, self.h_dim, self.z_dim, self.channels, self.dropout_rate)
+        ce_loss, acc = setup_outputs(x, q, y, training, self.input_shape, self.h_dim, self.z_dim, self.dropout_rate)
         self.ce_loss, self.acc = ce_loss, acc
 
         train_op = setup_train_op(
             ce_loss,
-            epoch_decay_interval=20,
+            epoch_decay_interval=epoch_decay_interval,
             n_episodes=n_episodes)
 
         init_op = tf.global_variables_initializer()
@@ -123,27 +121,25 @@ def euclidean_distance(a, b):
     return tf.reduce_mean(tf.square(a - b), axis=2)
 
 
-def setup_inputs(im_height, im_width, channels):
-    x = tf.placeholder(tf.float32, [None, None, im_height, im_width, channels])
-    q = tf.placeholder(tf.float32, [None, None, im_height, im_width, channels])
+def setup_inputs(input_shape):
+    x = tf.placeholder(tf.float32, [None, None, *input_shape])
+    q = tf.placeholder(tf.float32, [None, None, *input_shape])
     y = tf.placeholder(tf.int64, [None, None])
     training = tf.placeholder(tf.bool)
     return x, q, y, training
 
 
-def setup_outputs(x, q, y, training, h_dim, z_dim, channels, dropout_rate):
+def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate):
     x_shape = tf.shape(x)
     q_shape = tf.shape(q)
 
     num_classes, num_support = x_shape[0], x_shape[1]
     num_queries = q_shape[1]
-    im_height = x_shape[2]
-    im_width = x_shape[3]
 
     y_one_hot = tf.one_hot(y, depth=num_classes)
 
     emb_x = encoder(
-        tf.reshape(x, [num_classes * num_support, im_height, im_width, channels]),
+        tf.reshape(x, [num_classes * num_support, *input_shape]),
         h_dim,
         z_dim,
         training=training,
@@ -152,7 +148,7 @@ def setup_outputs(x, q, y, training, h_dim, z_dim, channels, dropout_rate):
     emb_dim = tf.shape(emb_x)[-1]
     emb_x = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
     emb_q = encoder(
-        tf.reshape(q, [num_classes * num_queries, im_height, im_width, channels]),
+        tf.reshape(q, [num_classes * num_queries, *input_shape]),
         h_dim,
         z_dim,
         reuse=True,
