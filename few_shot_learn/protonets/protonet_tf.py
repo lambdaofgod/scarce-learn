@@ -16,17 +16,23 @@ class ProtoNetTF:
         else:
             self.sess = sess
 
-    def train(self, train_dataset, n_epochs, n_episodes, n_way, n_shot, n_query, epoch_decay_interval=20):
-        n_classes, n_examples, im_width, im_height = train_dataset.shape
-
         x, q, y, training = setup_inputs(self.input_shape)
         self.x, self.q, self.y, self.training = x, q, y, training
 
-        ce_loss, acc = setup_outputs(x, q, y, training, self.input_shape, self.h_dim, self.z_dim, self.dropout_rate)
-        self.ce_loss, self.acc = ce_loss, acc
+        outputs = setup_outputs(
+            x, q, y, training,
+            self.input_shape, self.h_dim, self.z_dim, self.dropout_rate,
+            scope_name_suffix=scope_name_suffix
+        )
+        self.embedding, self.loss, self.acc = outputs
+
+    def train(self, train_dataset, n_epochs, n_episodes, n_way, n_shot, n_query, **kwargs):
+        epoch_decay_interval = kwargs.get('epoch_decay_interval', 20)
+
+        n_classes, n_examples, im_width, im_height = train_dataset.shape
 
         train_op = setup_train_op(
-            ce_loss,
+            self.loss,
             epoch_decay_interval=epoch_decay_interval,
             n_episodes=n_episodes)
 
@@ -37,6 +43,9 @@ class ProtoNetTF:
         train_accs = []
 
         for ep in range(n_epochs):
+            epoch_losses = []
+            epoch_accs = []
+
             for epi in trange(n_episodes):
                 epi_classes = np.random.permutation(n_classes)[:n_way]
                 support = np.zeros([n_way, n_shot, im_height, im_width], dtype=np.float32)
@@ -51,12 +60,17 @@ class ProtoNetTF:
                 query = np.expand_dims(query, axis=-1)
                 labels = np.tile(np.arange(n_way)[:, np.newaxis], (1, n_query)).astype(np.uint8)
                 __, ls, ac = self.sess.run(
-                    [train_op, ce_loss, acc],
-                    feed_dict={x: support, q: query, y:labels, training: True}
+                    [train_op, self.loss, self.acc],
+                    feed_dict={self.x: support, self.q: query, self.y:labels, self.training: True}
                 )
-                train_losses.append(ls)
-                train_accs.append(ac)
-            print('[epoch {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, ls, ac))
+                epoch_losses.append(ls)
+                epoch_accs.append(ac)
+            mean_epoch_loss = np.array(epoch_losses).mean()
+            mean_epoch_acc = np.array(epoch_accs).mean()
+            print('[epoch {}/{}] => loss: {:.5f}, accuracy: {:.5f}'.format(ep+1, n_epochs, mean_epoch_loss, mean_epoch_acc))
+
+            train_losses += epoch_losses
+            train_accs += epoch_accs
         return train_losses, train_accs
 
     def test(self, test_dataset, n_test_classes, n_test_episodes, n_test_way, n_test_shot, n_test_query):
@@ -78,20 +92,20 @@ class ProtoNetTF:
             query = np.expand_dims(query, axis=-1)
             labels = np.tile(np.arange(n_test_way)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
             ls, ac = self.sess.run(
-                [self.ce_loss, self.acc],
+                [self.loss, self.acc],
                 feed_dict={self.x: support, self.q: query, self.y:labels, self.training:False}
             )
             test_accs.append(ac)
             test_losses.append(ls)
             if (epi+1) % 25 == 0:
-                print('[test episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(epi+1, n_test_episodes, ls, ac))
+                print('[test episode {}/{}] => loss: {:.5f}, accuracy: {:.5f}'.format(epi+1, n_test_episodes, ls, ac))
 
         avg_acc = (sum(test_accs) / len(test_accs))
         print('Average Test Accuracy: {:.5f}'.format(avg_acc))
         return test_losses, test_accs
 
 
-def conv_block(inputs, out_channels, training, rate, name='conv'):
+def conv_block(inputs, out_channels, training, rate, name):
     with tf.variable_scope(name):
         conv = tf.layers.conv2d(inputs, out_channels, kernel_size=3, padding='SAME')
         conv = tf.contrib.layers.batch_norm(conv, updates_collections=None, decay=0.99, scale=True, center=True)
@@ -101,12 +115,12 @@ def conv_block(inputs, out_channels, training, rate, name='conv'):
         return conv
 
 
-def encoder(x, h_dim, z_dim, training, rate, reuse=False):
-    with tf.variable_scope('encoder', reuse=reuse):
-        net = conv_block(x, h_dim, name='conv_1', training=training, rate=rate)
-        net = conv_block(net, h_dim, name='conv_2', training=training, rate=rate)
-        net = conv_block(net, h_dim, name='conv_3', training=training, rate=rate)
-        net = conv_block(net, z_dim, name='conv_4', training=training, rate=rate)
+def encoder(x, h_dim, z_dim, training, rate, reuse=False, scope_name_suffix=''):
+    with tf.variable_scope('encoder' + scope_name_suffix, reuse=reuse):
+        net = conv_block(x, h_dim, name='conv_1' + scope_name_suffix, training=training, rate=rate)
+        net = conv_block(net, h_dim, name='conv_2' + scope_name_suffix, training=training, rate=rate)
+        net = conv_block(net, h_dim, name='conv_3' + scope_name_suffix, training=training, rate=rate)
+        net = conv_block(net, z_dim, name='conv_4' + scope_name_suffix, training=training, rate=rate)
         net = tf.contrib.layers.flatten(net)
         return net
 
@@ -129,7 +143,7 @@ def setup_inputs(input_shape):
     return x, q, y, training
 
 
-def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate):
+def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, scope_name_suffix):
     x_shape = tf.shape(x)
     q_shape = tf.shape(q)
 
@@ -143,7 +157,8 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate):
         h_dim,
         z_dim,
         training=training,
-        rate=dropout_rate
+        rate=dropout_rate,
+        scope_name_suffix=scope_name_suffix
     )
     emb_dim = tf.shape(emb_x)[-1]
     emb_x = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
@@ -153,15 +168,16 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate):
         z_dim,
         reuse=True,
         training=training,
-        rate=dropout_rate
+        rate=dropout_rate,
+        scope_name_suffix=scope_name_suffix
     )
 
     dists = euclidean_distance(emb_q, emb_x)
     log_p_y = tf.reshape(tf.nn.log_softmax(-dists), [num_classes, num_queries, -1])
 
-    ce_loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_one_hot, log_p_y), axis=-1), [-1]))
+    loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_one_hot, log_p_y), axis=-1), [-1]))
     acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(log_p_y, axis=-1), y)))
-    return ce_loss, acc
+    return emb_x, loss, acc
 
 
 def setup_train_op(
