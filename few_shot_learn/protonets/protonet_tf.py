@@ -1,16 +1,17 @@
 import numpy as np
 import tensorflow as tf
 from tqdm import trange
+import uuid
 
 
 class ProtoNetTF:
 
-    def __init__(self, input_shape, h_dim=64, z_dim=64, dropout_rate=0.1, scope_name_suffix='_0', sess=None):
+    def __init__(self, input_shape, h_dim=64, z_dim=64, dropout_rate=0.1, sess=None):
         self.input_shape = input_shape
         self.h_dim = h_dim
         self.z_dim = z_dim
         self.dropout_rate = dropout_rate
-        self.scope_name_suffix = scope_name_suffix
+        self._scope_name_suffix = str(uuid.uuid4())
         if sess is None:
             self.sess = tf.InteractiveSession()
         else:
@@ -22,7 +23,7 @@ class ProtoNetTF:
         outputs = setup_outputs(
             x, q, y, training,
             self.input_shape, self.h_dim, self.z_dim, self.dropout_rate,
-            scope_name_suffix=scope_name_suffix
+            scope_name_suffix=self._scope_name_suffix
         )
         self.embedding, self.loss, self.acc = outputs
 
@@ -161,7 +162,7 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, sc
         scope_name_suffix=scope_name_suffix
     )
     emb_dim = tf.shape(emb_x)[-1]
-    emb_x = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
+    prototypes = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
     emb_q = encoder(
         tf.reshape(q, [num_classes * num_queries, *input_shape]),
         h_dim,
@@ -172,7 +173,7 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, sc
         scope_name_suffix=scope_name_suffix
     )
 
-    dists = euclidean_distance(emb_q, emb_x)
+    dists = euclidean_distance(emb_q, prototypes)
     log_p_y = tf.reshape(tf.nn.log_softmax(-dists), [num_classes, num_queries, -1])
 
     loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_one_hot, log_p_y), axis=-1), [-1]))
