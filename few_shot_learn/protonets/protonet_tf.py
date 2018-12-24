@@ -30,7 +30,7 @@ class ProtoNetTF:
     def train(self, train_dataset, n_epochs, n_episodes, n_way, n_shot, n_query, **kwargs):
         epoch_decay_interval = kwargs.get('epoch_decay_interval', 20)
 
-        n_classes, n_examples, im_width, im_height = train_dataset.shape
+        n_classes, n_examples, *input_shape = train_dataset.shape
 
         train_op = setup_train_op(
             self.loss,
@@ -49,16 +49,14 @@ class ProtoNetTF:
 
             for epi in trange(n_episodes):
                 epi_classes = np.random.permutation(n_classes)[:n_way]
-                support = np.zeros([n_way, n_shot, im_height, im_width], dtype=np.float32)
-                query = np.zeros([n_way, n_query, im_height, im_width], dtype=np.float32)
+                support = np.zeros([n_way, n_shot, *input_shape], dtype=np.float32)
+                query = np.zeros([n_way, n_query, *input_shape], dtype=np.float32)
 
                 for i, epi_cls in enumerate(epi_classes):
                     selected = np.random.permutation(n_examples)[:n_shot + n_query]
                     support[i] = train_dataset[epi_cls, selected[:n_shot]]
                     query[i] = train_dataset[epi_cls, selected[n_shot:]]
 
-                support = np.expand_dims(support, axis=-1)
-                query = np.expand_dims(query, axis=-1)
                 labels = np.tile(np.arange(n_way)[:, np.newaxis], (1, n_query)).astype(np.uint8)
                 __, ls, ac = self.sess.run(
                     [train_op, self.loss, self.acc],
@@ -75,22 +73,20 @@ class ProtoNetTF:
         return train_losses, train_accs
 
     def test(self, test_dataset, n_test_classes, n_test_episodes, n_test_way, n_test_shot, n_test_query):
-        n_classes, n_examples, im_width, im_height = test_dataset.shape
+        n_classes, n_examples, *input_shape = test_dataset.shape
 
         print('Testing...')
         test_losses, test_accs = [], []
 
         for epi in range(n_test_episodes):
             epi_classes = np.random.permutation(n_test_classes)[:n_test_way]
-            support = np.zeros([n_test_way, n_test_shot, im_height, im_width], dtype=np.float32)
-            query = np.zeros([n_test_way, n_test_query, im_height, im_width], dtype=np.float32)
+            support = np.zeros([n_test_way, n_test_shot, *input_shape], dtype=np.float32)
+            query = np.zeros([n_test_way, n_test_query, *input_shape], dtype=np.float32)
 
             for i, epi_cls in enumerate(epi_classes):
                 selected = np.random.permutation(n_examples)[:n_test_shot + n_test_query]
                 support[i] = test_dataset[epi_cls, selected[:n_test_shot]]
                 query[i] = test_dataset[epi_cls, selected[n_test_shot:]]
-            support = np.expand_dims(support, axis=-1)
-            query = np.expand_dims(query, axis=-1)
             labels = np.tile(np.arange(n_test_way)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
             ls, ac = self.sess.run(
                 [self.loss, self.acc],
@@ -104,6 +100,10 @@ class ProtoNetTF:
         avg_acc = (sum(test_accs) / len(test_accs))
         print('Average Test Accuracy: {:.5f}'.format(avg_acc))
         return test_losses, test_accs
+
+    def embed(self, examples):
+        x = np.expand_dims(examples, 0)
+        return self.sess.run(self.embedding, feed_dict={self.x: x, self.training: False})
 
 
 def conv_block(inputs, out_channels, training, rate, name):
@@ -137,9 +137,9 @@ def euclidean_distance(a, b):
 
 
 def setup_inputs(input_shape):
-    x = tf.placeholder(tf.float32, [None, None, *input_shape])
-    q = tf.placeholder(tf.float32, [None, None, *input_shape])
-    y = tf.placeholder(tf.int64, [None, None])
+    x = tf.placeholder(tf.float32, [None, None, *input_shape], name='x')
+    q = tf.placeholder(tf.float32, [None, None, *input_shape], name='q')
+    y = tf.placeholder(tf.int64, [None, None], name='y')
     training = tf.placeholder(tf.bool)
     return x, q, y, training
 
