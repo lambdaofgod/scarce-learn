@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 from .conf import FEW_SHOT_LEARN_PATH
 from .util import _download_files_if_nonexistent, _load_gzipped_array
@@ -6,6 +7,7 @@ from .util import _download_files_if_nonexistent, _load_gzipped_array
 
 def load_omniglot(few_shot_learn_path=FEW_SHOT_LEARN_PATH):
     omniglot_path = os.path.join(few_shot_learn_path, 'data', 'omniglot')
+    pathlib.Path(omniglot_path).mkdir(parents=True, exist_ok=True)
     file_link_template = 'https://github.com/lambdaofgod/few-shot-learn-data/blob/master/omniglot/omniglot_{}.pkl.gz?raw=true'
     file_links = [
         file_link_template.format(split)
