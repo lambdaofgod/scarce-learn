@@ -57,13 +57,12 @@ def prepare_tars(data_path):
     ]
     if not set(expected_tars).issubset(set(data_path_files)):
         download_tars(data_path)
-    else:
-        print('Preparing files...')
-        for path in expected_tars:
-            print(path)
-            tar = tarfile.open(path)
-            tar.extractall(path=data_path)
-            tar.close()
+    print('Preparing files...')
+    for path in expected_tars:
+        print(path)
+        tar = tarfile.open(path)
+        tar.extractall(path=data_path)
+        tar.close()
 
 
 def download_tars(data_path):
