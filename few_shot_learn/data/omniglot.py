@@ -21,4 +21,3 @@ def _load_omniglot_from_path(omniglot_path):
     train_filename = os.path.join(omniglot_path, 'omniglot_train.pkl.gz')
     test_filename = os.path.join(omniglot_path, 'omniglot_test.pkl.gz')
     return _load_gzipped_array(train_filename), _load_gzipped_array(test_filename)
-

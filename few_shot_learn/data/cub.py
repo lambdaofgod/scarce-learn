@@ -1,6 +1,7 @@
 import glob
 import os
 import pathlib
+import tarfile
 
 import numpy as np
 from skimage.io import imread
@@ -35,8 +36,42 @@ def load_split(images_dir, split_image_filenames):
     return [image_path for image_path in image_paths if os.path.basename(image_path) in split_image_paths]
 
 
-def load_cub(image_size=(128, 128)):
+def prepare_data(data_path):
     pathlib.Path(CUB_DATA_PATH).mkdir(parents=True, exist_ok=True)
+    data_path_files = glob.glob(os.path.join(data_path, '**'))
+    expected_directories = [
+        os.path.join(data_path, path)
+        for path in ['images', 'lists', 'attributes']
+    ]
+    print(expected_directories)
+    print(data_path_files)
+    if not set(expected_directories).issubset(set(data_path_files)):
+        prepare_tars(data_path)
+
+
+def prepare_tars(data_path):
+    data_path_files = glob.glob(os.path.join(data_path, '*'))
+    expected_tars = [
+        os.path.join(data_path, path + '.tgz')
+        for path in ['images', 'lists', 'attributes']
+    ]
+    if not set(expected_tars).issubset(set(data_path_files)):
+        download_tars(data_path)
+    else:
+        for path in expected_tars:
+            print(path)
+            tar = tarfile.open(path)
+            tar.extractall(path=data_path)
+            tar.close()
+
+
+def download_tars(data_path):
+    pass
+
+
+def load_cub(image_size=(128, 128)):
+    prepare_data(CUB_DATA_PATH)
+
     images_dir = os.path.join(CUB_DATA_PATH, 'images')
     train_image_paths = load_split(images_dir, 'train.txt')
     test_image_paths = load_split(images_dir, 'test.txt')
