@@ -45,8 +45,6 @@ def prepare_data(data_path):
         os.path.join(data_path, path)
         for path in ['images', 'lists', 'attributes']
     ]
-    print(expected_directories)
-    print(data_path_files)
     if not set(expected_directories).issubset(set(data_path_files)):
         prepare_tars(data_path)
 
@@ -60,6 +58,7 @@ def prepare_tars(data_path):
     if not set(expected_tars).issubset(set(data_path_files)):
         download_tars(data_path)
     else:
+        print('Preparing files...')
         for path in expected_tars:
             print(path)
             tar = tarfile.open(path)
@@ -68,7 +67,8 @@ def prepare_tars(data_path):
 
 
 def download_tars(data_path):
-    subsets = ['images', 'lists', 'attributes']
+    print('Downloading files...')
+    subsets = ['lists', 'attributes', 'images']
     expected_tars = [
         os.path.join(data_path, subset + '.tgz')
         for subset in subsets
@@ -88,17 +88,17 @@ def download_tar(link, file_name):
         response = requests.get(link, stream=True)
         total_length = response.headers.get('content-length')
 
-        if total_length is None: # no content length header
+        if total_length is None:
             f.write(response.content)
         else:
             total_length = int(total_length)
-            for data in tqdm(response.iter_content(chunk_size=4096), total=total_length):
+            chunk_size = 4096
+            for data in tqdm(response.iter_content(chunk_size=chunk_size), total=total_length // chunk_size):
                 f.write(data)
 
 
 def load_cub(image_size=(128, 128)):
     prepare_data(CUB_DATA_PATH)
-
     images_dir = os.path.join(CUB_DATA_PATH, 'images')
     train_image_paths = load_split(images_dir, 'train.txt')
     test_image_paths = load_split(images_dir, 'test.txt')
