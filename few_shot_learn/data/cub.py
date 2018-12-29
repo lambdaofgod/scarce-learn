@@ -2,7 +2,9 @@ import glob
 import os
 import pathlib
 import tarfile
+import requests
 
+from tqdm import tqdm
 import numpy as np
 from skimage.io import imread
 from skimage.transform import resize as imresize
@@ -66,7 +68,32 @@ def prepare_tars(data_path):
 
 
 def download_tars(data_path):
-    pass
+    subsets = ['images', 'lists', 'attributes']
+    expected_tars = [
+        os.path.join(data_path, subset + '.tgz')
+        for subset in subsets
+    ]
+    template_link = 'http://www.vision.caltech.edu/visipedia-data/CUB-200/{}.tgz'
+    links = [
+        template_link.format(subset)
+        for subset in subsets
+    ]
+    for (link, file_name) in zip(links, expected_tars):
+        download_tar(link, file_name)
+
+
+def download_tar(link, file_name):
+    with open(file_name, "wb") as f:
+        print('Downloading', file_name)
+        response = requests.get(link, stream=True)
+        total_length = response.headers.get('content-length')
+
+        if total_length is None: # no content length header
+            f.write(response.content)
+        else:
+            total_length = int(total_length)
+            for data in tqdm(response.iter_content(chunk_size=4096), total=total_length):
+                f.write(data)
 
 
 def load_cub(image_size=(128, 128)):
