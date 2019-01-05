@@ -1,6 +1,6 @@
 import gzip
 import os
-import pickle
+import numpy as np
 
 import requests
 
@@ -19,4 +19,4 @@ def _download_file(file_link, file_path):
 
 
 def _load_gzipped_array(file_name):
-    return pickle.loads(gzip.decompress(open(file_name, 'rb').read()))
+    return np.load(gzip.GzipFile(file_name))
