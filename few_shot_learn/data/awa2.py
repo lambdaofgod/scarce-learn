@@ -24,18 +24,18 @@ def load_awa2_train_test():
 
     X_resnet = resnet_features['features'].T
     labels = resnet_features['labels'][:,0] - 1
-    Y_attributes = example_attributes
+    attributes = example_attributes
 
     train_indices = pd.read_csv(os.path.join(awa_path, 'trainvalclasses.txt')).values[:,0]
 
-    is_train = Y_attributes.index.isin(train_indices)
+    is_train = attributes.index.isin(train_indices)
     X_train = X_resnet[is_train]
     X_test = X_resnet[~is_train]
-    Y_attributes_train = Y_attributes[is_train]
-    Y_attributes_test = Y_attributes[~is_train]
+    attributes_train = attributes[is_train]
+    attributes_test = attributes[~is_train]
     labels_train = labels[is_train]
     labels_test = labels[~is_train]
-    return (X_train, Y_attributes_train, labels_train), (X_test, Y_attributes_test, labels_test)
+    return (X_train, attributes_train, labels_train), (X_test, attributes_test, labels_test)
 
 
 def _setup_awa2(data_path):
