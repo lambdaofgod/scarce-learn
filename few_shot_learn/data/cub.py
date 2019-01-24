@@ -10,12 +10,18 @@ from skimage.io import imread
 from skimage.transform import resize as imresize
 
 from .conf import FEW_SHOT_LEARN_PATH
+from .xlsa import load_dataset
 
-CUB_DATA_PATH = os.path.join(FEW_SHOT_LEARN_PATH, 'data', 'cub')
+CUB_DATA_PATH = os.path.join(FEW_SHOT_LEARN_PATH, 'data', 'xlsa17', 'CUB')
+CUB_IMAGE_DATA_PATH = os.path.join(FEW_SHOT_LEARN_PATH, 'data', 'cub')
+
+
+def load_cub():
+    return load_dataset(CUB_DATA_PATH)
 
 
 def _get_image_basepaths(split_text_filename):
-    image_paths = open(os.path.join(CUB_DATA_PATH, 'lists', split_text_filename)).readlines()
+    image_paths = open(os.path.join(CUB_IMAGE_DATA_PATH, 'lists', split_text_filename)).readlines()
     return [os.path.basename(path[:-1]) for path in image_paths]
 
 
@@ -39,7 +45,7 @@ def load_split(images_dir, split_image_filenames):
 
 
 def prepare_data(data_path):
-    pathlib.Path(CUB_DATA_PATH).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(CUB_IMAGE_DATA_PATH).mkdir(parents=True, exist_ok=True)
     data_path_files = glob.glob(os.path.join(data_path, '**'))
     expected_directories = [
         os.path.join(data_path, path)
@@ -96,9 +102,9 @@ def download_tar(link, file_name):
                 f.write(data)
 
 
-def load_cub(image_size=(128, 128)):
-    prepare_data(CUB_DATA_PATH)
-    images_dir = os.path.join(CUB_DATA_PATH, 'images')
+def load_cub_images(image_size=(128, 128)):
+    prepare_data(CUB_IMAGE_DATA_PATH)
+    images_dir = os.path.join(CUB_IMAGE_DATA_PATH, 'images')
     train_image_paths = load_split(images_dir, 'train.txt')
     test_image_paths = load_split(images_dir, 'test.txt')
 

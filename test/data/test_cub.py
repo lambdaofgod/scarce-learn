@@ -1,9 +1,9 @@
-from few_shot_learn.data.cub import load_cub
+from few_shot_learn.data.cub import load_cub, load_cub_images
 
 
-def test_cub_data():
+def test_cub_image_data():
 
-    cub_data = load_cub((64, 64))
+    cub_data = load_cub_images((64, 64))
 
     cub_train_data = cub_data['train'][0]
     cub_train_labels = cub_data['train'][1]
