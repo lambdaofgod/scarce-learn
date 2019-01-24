@@ -27,15 +27,18 @@ def _relabel(labels_seen, labels_split):
     return labels_split
 
 
-def validate_data_existence(path):
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-
-    if not os.path.exists(path):
-        temporary_path = os.path.join(path, 'xlsa17.zip')
-        if not os.path.exists(temporary_path):
-            _download_file('http://datasets.d2.mpi-inf.mpg.de/xian/xlsa17.zip', temporary_path)
-        file = zipfile.ZipFile(temporary_path)
-        file.extractall(path)
+def validate_data_existence(base_path, path):
+    full_path = os.path.join(base_path, path)
+    data_path = os.path.join(base_path, 'data')
+    if not os.path.exists(full_path):
+        pathlib.Path(data_path).mkdir(parents=True, exist_ok=True)
+        zip_path = os.path.join(data_path, 'xlsa17.zip')
+        if not os.path.exists(zip_path):
+            print('Dataset not found, downloading xlsa17.zip...')
+            _download_file('http://datasets.d2.mpi-inf.mpg.de/xian/xlsa17.zip', zip_path)
+        print('Unzipping xlsa17 datasets...')
+        file = zipfile.ZipFile(zip_path)
+        file.extractall(data_path)
 
 
 def select_split(split_key, feature_data, attribute_data):
@@ -51,9 +54,9 @@ def select_split(split_key, feature_data, attribute_data):
 
 
 def load_dataset(path):
-    data_path = os.path.join(FEW_SHOT_LEARN_PATH, path)
-    validate_data_existence(data_path)
+    validate_data_existence(FEW_SHOT_LEARN_PATH, path)
 
+    data_path = os.path.join(FEW_SHOT_LEARN_PATH, path)
     resnet_features_path = os.path.join(data_path, 'res101.mat')
     att_split_path = os.path.join(data_path, 'att_splits.mat')
 
