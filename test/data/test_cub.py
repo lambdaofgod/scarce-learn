@@ -1,4 +1,4 @@
-from few_shot_learn.data.cub import load_cub, load_cub_images
+from scarce_shot_learn.data.cub import load_cub, load_cub_images
 
 
 def test_cub_image_data():

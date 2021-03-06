@@ -1,5 +1,5 @@
 import numpy as np
-from few_shot_learn.few import ProtoNetTF
+from scarce_shot_learn.scarce import ProtoNetTF
 
 
 def test_model():

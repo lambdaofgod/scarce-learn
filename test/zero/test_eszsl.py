@@ -1,5 +1,5 @@
 import numpy as np
-from few_shot_learn.zero import ESZSLearner
+from scarce_shot_learn.zero import ESZSLearner
 
 
 def test_attribute_to_labels():

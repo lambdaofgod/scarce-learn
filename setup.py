@@ -2,10 +2,10 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='few_shot_learn',
+    name='scarce_shot_learn',
     version='0.1',
-    description='A Python toolkit for few-shot learning',
-    url='https://github.com/lambdaofgod/few-shot-learn',
+    description='A Python toolkit for scarce-shot learning',
+    url='https://github.com/lambdaofgod/scarce-shot-learn',
     author='Jakub Bartczuk',
     packages=find_packages()
 )

@@ -1,4 +1,4 @@
-from few_shot_learn.data.omniglot import load_omniglot
+from scarce_shot_learn.data.omniglot import load_omniglot
 
 
 def test_omniglot_data():
