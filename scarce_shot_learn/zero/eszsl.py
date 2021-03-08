@@ -1,18 +1,19 @@
+from scarce_shot_learn.zero import zsl_base
+import attr
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 
-
-class ESZSLearner:
+@attr.s
+class ESZSLearner(zsl_base.ZeroShotClassifier):
     """
         Embarassingly Simple Zero Shot Learning
         see http://proceedings.mlr.press/v37/romera-paredes15.pdf
         for the paper
     """
-    def __init__(self, lmbda=1e-2, gamma=1e-2):
-        self.lmbda = lmbda
-        self.gamma = gamma
+    lmbda = attr.ib(default=1e-2) 
+    gamma = attr.ib(default=1e-2) 
 
-    def fit(self, X, y, attributes):
+    def fit(self, X, y, class_attributes):
         le = LabelEncoder()
         ohe = OneHotEncoder()
         y_labels_encoded = le.fit_transform(y)
@@ -20,12 +21,15 @@ class ESZSLearner:
         y_labels_ohe = ohe.fit_transform(y_labels_encoded.reshape(-1, 1)).toarray()
         X_correlation_term_inv = np.linalg.pinv(X.T @ X + self.gamma * np.eye(X.shape[1]))
         attributes_correlation_term_inv = np.linalg.pinv(
-            attributes.T @ attributes + self.lmbda * np.eye(attributes.shape[1]))
-        X_times_ohe_times_attributes = X.T @ y_labels_ohe @ attributes
+            class_attributes.T @ class_attributes + self.lmbda * np.eye(class_attributes.shape[1]))
+        X_times_ohe_times_attributes = X.T @ y_labels_ohe @ class_attributes
         self.attributes_to_attributes = X_correlation_term_inv @ X_times_ohe_times_attributes @ attributes_correlation_term_inv
 
-    def predict(self, X, attributes, attributes_to_labels=None):
-        if attributes_to_labels is None:
-            attributes_to_labels = np.arange(attributes.shape[0])
-        scores = X @ self.attributes_to_attributes @ attributes.T
-        return attributes_to_labels[np.argmax(scores, axis=1)]
+    def predict(self, X, class_attributes, labels_to_attributes=None):
+        if labels_to_attributes is None:
+            labels_to_attributes = np.arange(class_attributes.shape[0])
+        scores = X @ self.attributes_to_attributes @ class_attributes.T
+        return labels_to_attributes[np.argmax(scores, axis=1)]
+
+    fit.__doc__ = zsl_base.ZeroShotClassifier.fit.__doc__
+    predict.__doc__ = zsl_base.ZeroShotClassifier.predict.__doc__

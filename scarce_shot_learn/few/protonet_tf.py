@@ -7,13 +7,14 @@ import uuid
 class ProtoNetTF:
 
     def __init__(self, input_shape, h_dim=64, z_dim=64, dropout_rate=0.1, sess=None):
+        tf.compat.v1.disable_eager_execution()
         self.input_shape = input_shape
         self.h_dim = h_dim
         self.z_dim = z_dim
         self.dropout_rate = dropout_rate
         self._scope_name_suffix = str(uuid.uuid4())
         if sess is None:
-            self.sess = tf.InteractiveSession()
+            self.sess = tf.compat.v1.InteractiveSession()
         else:
             self.sess = sess
 
@@ -37,7 +38,7 @@ class ProtoNetTF:
             epoch_decay_interval=epoch_decay_interval,
             n_episodes=n_episodes)
 
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         self.sess.run(init_op)
 
         train_losses = []
@@ -107,17 +108,17 @@ class ProtoNetTF:
 
 
 def conv_block(inputs, out_channels, training, rate, name):
-    with tf.variable_scope(name):
-        conv = tf.layers.conv2d(inputs, out_channels, kernel_size=3, padding='SAME')
+    with tf.compat.v1.variable_scope(name):
+        conv = tf.compat.v1.layers.conv2d(inputs, out_channels, kernel_size=3, padding='SAME')
         conv = tf.contrib.layers.batch_norm(conv, updates_collections=None, decay=0.99, scale=True, center=True)
         conv = tf.nn.relu(conv)
         conv = tf.contrib.layers.max_pool2d(conv, 2)
-        conv = tf.layers.dropout(conv, rate=rate, training=training)
+        conv = tf.compat.v1.layers.dropout(conv, rate=rate, training=training)
         return conv
 
 
 def encoder(x, h_dim, z_dim, training, rate, reuse=False, scope_name_suffix=''):
-    with tf.variable_scope('encoder' + scope_name_suffix, reuse=reuse):
+    with tf.compat.v1.variable_scope('encoder' + scope_name_suffix, reuse=reuse):
         net = conv_block(x, h_dim, name='conv_1' + scope_name_suffix, training=training, rate=rate)
         net = conv_block(net, h_dim, name='conv_2' + scope_name_suffix, training=training, rate=rate)
         net = conv_block(net, h_dim, name='conv_3' + scope_name_suffix, training=training, rate=rate)
@@ -129,24 +130,24 @@ def encoder(x, h_dim, z_dim, training, rate, reuse=False, scope_name_suffix=''):
 def euclidean_distance(a, b):
     # a.shape = N x D
     # b.shape = M x D
-    N, D = tf.shape(a)[0], tf.shape(a)[1]
-    M = tf.shape(b)[0]
+    N, D = tf.shape(input=a)[0], tf.shape(input=a)[1]
+    M = tf.shape(input=b)[0]
     a = tf.tile(tf.expand_dims(a, axis=1), (1, M, 1))
     b = tf.tile(tf.expand_dims(b, axis=0), (N, 1, 1))
-    return tf.reduce_mean(tf.square(a - b), axis=2)
+    return tf.reduce_mean(input_tensor=tf.square(a - b), axis=2)
 
 
 def setup_inputs(input_shape):
-    x = tf.placeholder(tf.float32, [None, None, *input_shape], name='x')
-    q = tf.placeholder(tf.float32, [None, None, *input_shape], name='q')
-    y = tf.placeholder(tf.int64, [None, None], name='y')
-    training = tf.placeholder(tf.bool)
+    x = tf.compat.v1.placeholder(tf.float32, [None, None, *input_shape], name='x')
+    q = tf.compat.v1.placeholder(tf.float32, [None, None, *input_shape], name='q')
+    y = tf.compat.v1.placeholder(tf.int64, [None, None], name='y')
+    training = tf.compat.v1.placeholder(tf.bool)
     return x, q, y, training
 
 
 def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, scope_name_suffix):
-    x_shape = tf.shape(x)
-    q_shape = tf.shape(q)
+    x_shape = tf.shape(input=x)
+    q_shape = tf.shape(input=q)
 
     num_classes, num_support = x_shape[0], x_shape[1]
     num_queries = q_shape[1]
@@ -161,8 +162,8 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, sc
         rate=dropout_rate,
         scope_name_suffix=scope_name_suffix
     )
-    emb_dim = tf.shape(emb_x)[-1]
-    prototypes = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
+    emb_dim = tf.shape(input=emb_x)[-1]
+    prototypes = tf.reduce_mean(input_tensor=tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
     emb_q = encoder(
         tf.reshape(q, [num_classes * num_queries, *input_shape]),
         h_dim,
@@ -176,8 +177,8 @@ def setup_outputs(x, q, y, training, input_shape, h_dim, z_dim, dropout_rate, sc
     dists = euclidean_distance(emb_q, prototypes)
     log_p_y = tf.reshape(tf.nn.log_softmax(-dists), [num_classes, num_queries, -1])
 
-    loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_one_hot, log_p_y), axis=-1), [-1]))
-    acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(log_p_y, axis=-1), y)))
+    loss = -tf.reduce_mean(input_tensor=tf.reshape(tf.reduce_sum(input_tensor=tf.multiply(y_one_hot, log_p_y), axis=-1), [-1]))
+    acc = tf.reduce_mean(input_tensor=tf.cast(tf.equal(tf.argmax(input=log_p_y, axis=-1), y), dtype=tf.float32))
     return emb_x, loss, acc
 
 
@@ -192,7 +193,7 @@ def setup_train_op(
     """
 
     global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(
+    learning_rate = tf.compat.v1.train.exponential_decay(
         starter_learning_rate,
         global_step,
         epoch_decay_interval * n_episodes,
@@ -201,6 +202,6 @@ def setup_train_op(
     )
 
     return (
-        tf.train.AdamOptimizer(learning_rate)
+        tf.compat.v1.train.AdamOptimizer(learning_rate)
             .minimize(loss, global_step=global_step)
     )
