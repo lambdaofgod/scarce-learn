@@ -1,3 +1,6 @@
+from sklearn import metrics
+
+
 class ZeroShotClassifier:
 
     def fit(self, X, y, class_attributes):
@@ -30,3 +33,7 @@ yarray-like of shape (n_samples,)
         (classes that will be in y_pred)
         """
         raise NotImplementedError()
+
+    def score(self, X, y, class_attributes, labels_to_attributes=None, metric=metrics.accuracy_score):
+        y_pred = self.predict(X, class_attributes, labels_to_attributes)
+        return metric(y, y_pred)

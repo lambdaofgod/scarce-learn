@@ -45,7 +45,7 @@ def select_split(split_key, feature_data, attribute_data):
     labels = feature_data['labels']
     split_labels = labels[_index_with_squeeze(attribute_data, split_key)]
     split_labels_deduped = np.unique(split_labels)
-    split_labels = _relabel(split_labels_deduped, split_labels)
+    split_labels = np.ravel(_relabel(split_labels_deduped, split_labels))
     X = feature_data['features']
     split_features = X[:,_index_with_squeeze(attribute_data, split_key)]
     attribute_features = attribute_data['att']
