@@ -1,4 +1,6 @@
+import os
 from .cub import load_cub
+from .xlsa import load_dataset
 
 
 def load_awa2():
