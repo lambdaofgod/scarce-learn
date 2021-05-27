@@ -3,12 +3,13 @@ import itertools
 from frozendict import frozendict
 import tqdm
 from sklearn import metrics
+from scarce_learn import zero_shot
 
 
 @attr.s
 class HyperParamOptimizer:
 
-    learner: zero.ZeroShotClassifier = attr.ib()
+    learner: zero_shot.ZeroShotClassifier = attr.ib()
     hyperparams = attr.ib()
 
     def fit(self, X_train, y_train, class_attributes_train, X_val, y_val, class_attributes_val):

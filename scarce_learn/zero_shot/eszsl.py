@@ -1,4 +1,4 @@
-from scarce_shot_learn.zero_shot import zsl_base
+from scarce_learn.zero_shot import zsl_base
 import attr
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder

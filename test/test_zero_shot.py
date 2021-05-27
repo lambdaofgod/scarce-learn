@@ -1,5 +1,5 @@
 import numpy as np
-from scarce_shot_learn import zero_shot
+from scarce_learn import zero_shot
 
 
 def test_attribute_to_labels():

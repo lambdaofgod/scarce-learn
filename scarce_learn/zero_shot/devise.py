@@ -1,12 +1,12 @@
 import numpy as np
 import attr
 from toolz import partial
-from scarce_shot_learn.zero_shot import zsl_base
+from scarce_learn.zero_shot import zsl_base
 
 from sklearn import preprocessing
 import torch
 from torch import nn, optim
-from scarce_shot_learn.zero_shot import torch_util
+from scarce_learn.zero_shot import torch_util
 
 
 class DEVISELayer(nn.Module):
