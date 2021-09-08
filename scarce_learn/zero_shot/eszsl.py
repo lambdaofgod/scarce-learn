@@ -31,5 +31,8 @@ class ESZSLearner(zsl_base.ZeroShotClassifier):
         scores = X @ self.attributes_to_attributes @ class_attributes.T
         return labels_to_attributes[np.argmax(scores, axis=1)]
 
+    def predict_raw(self, X):
+        return X @ self.attributes_to_attributes
+
     fit.__doc__ = zsl_base.ZeroShotClassifier.fit.__doc__
     predict.__doc__ = zsl_base.ZeroShotClassifier.predict.__doc__

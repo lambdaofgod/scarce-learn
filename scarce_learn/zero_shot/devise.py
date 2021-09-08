@@ -58,3 +58,6 @@ class DEVISELearner(zsl_base.ZeroShotClassifier):
         X_tensor = torch.tensor(X).float().cuda()
         class_attributes_tensor = torch.Tensor(class_attributes).float().cuda()
         return self.loss_fn.predict(X_tensor, class_attributes_tensor).cpu().detach().numpy()
+
+    def predict_raw(self, X):
+        return X @ self.loss_fn.weights.cpu().detach().numpy()

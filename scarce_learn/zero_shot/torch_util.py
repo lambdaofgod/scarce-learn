@@ -24,7 +24,7 @@ def similarity_based_hinge_loss(weights, embedding, label, label_embeddings, fea
     indicator[label] = 0
     correct_class_similarity = feature_similarity(weights, embedding, label_embeddings[label])
     wrong_class_similarities = feature_similarity(weights, embedding, label_embeddings[indicator])
-    return - correct_class_similarity + wrong_class_similarities 
+    return - correct_class_similarity + wrong_class_similarities
 
 
 def get_dataloader(X, y, batch_size=16):
