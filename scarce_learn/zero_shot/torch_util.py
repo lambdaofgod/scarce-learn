@@ -14,7 +14,13 @@ def bilinear_feature_similarity(weights, embedding, class_features):
     return torch.matmul(embedding, torch.matmul(weights, class_features.T))
 
 
-def similarity_based_hinge_loss(weights, embedding, label, label_embeddings, feature_similarity=bilinear_feature_similarity):
+def similarity_based_hinge_loss(
+    weights,
+    embedding,
+    label,
+    label_embeddings,
+    feature_similarity=bilinear_feature_similarity,
+):
     """
     see https://arxiv.org/pdf/1703.04394.pdf
     equations (4) and (7) only differn in final per-class aggregation
@@ -22,9 +28,13 @@ def similarity_based_hinge_loss(weights, embedding, label, label_embeddings, fea
     """
     indicator = torch.ones(label_embeddings.shape[0], dtype=bool)
     indicator[label] = 0
-    correct_class_similarity = feature_similarity(weights, embedding, label_embeddings[label])
-    wrong_class_similarities = feature_similarity(weights, embedding, label_embeddings[indicator])
-    return - correct_class_similarity + wrong_class_similarities
+    correct_class_similarity = feature_similarity(
+        weights, embedding, label_embeddings[label]
+    )
+    wrong_class_similarities = feature_similarity(
+        weights, embedding, label_embeddings[indicator]
+    )
+    return -correct_class_similarity + wrong_class_similarities
 
 
 def get_dataloader(X, y, batch_size=16):
@@ -42,13 +52,25 @@ def process_function(engine, batch, loss_fn, optimizer, y_features, use_cuda=Tru
     y_pred = loss_fn.predict(x, y_features)
     loss.backward()
     optimizer.step()
-    return y_pred, y, {'loss': loss.item()}
+    return y_pred, y, {"loss": loss.item()}
 
 
-def run_training_loop(loss_fn, train_dataloader, epochs, y_features_train, optimizer=optim.Adagrad, use_cuda=True):
+def run_training_loop(
+    loss_fn,
+    train_dataloader,
+    epochs,
+    y_features_train,
+    optimizer=optim.Adagrad,
+    use_cuda=True,
+):
     if use_cuda:
         y_features_train = y_features_train.cuda()
-    engine_fn = partial(process_function, loss_fn=loss_fn, optimizer=optimizer(loss_fn.parameters()), y_features=y_features_train)
+    engine_fn = partial(
+        process_function,
+        loss_fn=loss_fn,
+        optimizer=optimizer(loss_fn.parameters()),
+        y_features=y_features_train,
+    )
     trainer = ignite.engine.Engine(engine_fn)
     pbar = tqdm_logger.ProgressBar()
     pbar.attach(trainer)

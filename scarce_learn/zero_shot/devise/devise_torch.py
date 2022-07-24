@@ -40,6 +40,7 @@ class DEVISELayer(nn.Module):
     def device(self):
         return next(self.parameters()).device
 
+
 @attr.s
 class DEVISELearner(zsl_base.ZeroShotClassifier):
     """
